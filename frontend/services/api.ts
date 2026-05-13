@@ -80,31 +80,43 @@ export const authApi = {
 
 // ── Users ─────────────────────────────────────────────────────
 export const usersApi = {
-  me: () => api.get('/users/me'),
-  search: (email: string) => api.get(`/users/search?email=${encodeURIComponent(email)}`),
+  me:      ()               => api.get('/users/me'),
   deposit: (amount: number) => api.post('/users/deposit', { amount }),
 };
 
-// ── Transfers ─────────────────────────────────────────────────
-export const transfersApi = {
-  send: (data: { receiver_email: string; amount: number; note?: string }) =>
-    api.post('/transfers', data),
-  history: (page = 1, limit = 20) =>
-    api.get(`/transfers?page=${page}&limit=${limit}`),
+// ── Buckets (Save It) ─────────────────────────────────────────
+export const bucketsApi = {
+  list:     ()                                                        => api.get('/buckets'),
+  create:   (data: { name: string; emoji?: string; color?: string }) => api.post('/buckets', data),
+  update:   (id: string, data: any)                                  => api.patch(`/buckets/${id}`, data),
+  delete:   (id: string)                                             => api.delete(`/buckets/${id}`),
+  deposit:  (id: string, amount: number)                             => api.post(`/buckets/${id}/deposit`,  { amount }),
+  withdraw: (id: string, amount: number)                             => api.post(`/buckets/${id}/withdraw`, { amount }),
 };
 
-// ── Goals ─────────────────────────────────────────────────────
-export const goalsApi = {
-  list: () => api.get('/goals'),
-  create: (data: any) => api.post('/goals', data),
-  update: (id: string, data: any) => api.patch(`/goals/${id}`, data),
-  delete: (id: string) => api.delete(`/goals/${id}`),
+// ── Income Sources ────────────────────────────────────────────
+export const incomeApi = {
+  list:   ()                        => api.get('/income'),
+  create: (data: any)               => api.post('/income', data),
+  update: (id: string, data: any)   => api.patch(`/income/${id}`, data),
+  delete: (id: string)              => api.delete(`/income/${id}`),
+};
+
+// ── Expenses ──────────────────────────────────────────────────
+export const expensesApi = {
+  list: (page = 1, limit = 20) => api.get(`/expenses?page=${page}&limit=${limit}`),
+  add:  (data: { amount: number; category: string; note?: string }) => api.post('/expenses', data),
+};
+
+// ── Garden ────────────────────────────────────────────────────
+export const gardenApi = {
+  list: () => api.get('/garden'),
 };
 
 // ── Streaks ───────────────────────────────────────────────────
 export const streaksApi = {
-  ping: () => api.post('/streaks/ping'),
-  get: () => api.get('/streaks'),
+  ping:    () => api.post('/streaks/ping'),
+  get:     () => api.get('/streaks'),
   restore: () => api.post('/streaks/restore'),
   history: () => api.get('/streaks/history'),
 };

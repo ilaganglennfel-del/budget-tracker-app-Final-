@@ -25,7 +25,11 @@ function validate(schema) {
 
 const registerSchema = z.object({
   email:      z.string().email('Must be a valid email').max(255),
-  password:   z.string().min(8, 'Password must be at least 8 characters').max(128),
+  password:   z.string()
+    .min(8,   'Password must be at least 8 characters')
+    .max(128)
+    .regex(/[0-9]/,        'Password must contain at least one number')
+    .regex(/[^a-zA-Z0-9]/, 'Password must contain at least one special character'),
   first_name: z.string().min(1).max(100).trim(),
   last_name:  z.string().min(1).max(100).trim(),
 });
@@ -68,16 +72,64 @@ const searchEmailSchema = z.object({
   email: z.string().email().max(255),
 });
 
+// ── Bucket schemas ──────────────────────────────────────────
+
+const bucketCreateSchema = z.object({
+  name:  z.string().min(1).max(100).trim(),
+  emoji: z.string().max(10).optional(),
+  color: z.string().max(20).optional(),
+});
+
+const bucketUpdateSchema = z.object({
+  name:  z.string().min(1).max(100).trim().optional(),
+  emoji: z.string().max(10).optional(),
+  color: z.string().max(20).optional(),
+});
+
+const bucketAmountSchema = z.object({
+  amount: z.number().positive('Amount must be positive').max(1_000_000),
+});
+
+// ── Income schemas ──────────────────────────────────────────
+
+const incomeCreateSchema = z.object({
+  name:      z.string().min(1).max(100).trim(),
+  category:  z.enum(['job', 'freelance', 'business', 'investment', 'other']),
+  amount:    z.number().positive('Amount must be positive').max(10_000_000),
+  frequency: z.enum(['weekly', 'biweekly', 'monthly']).optional(),
+});
+
+const incomeUpdateSchema = z.object({
+  name:      z.string().min(1).max(100).trim().optional(),
+  category:  z.enum(['job', 'freelance', 'business', 'investment', 'other']).optional(),
+  amount:    z.number().positive().max(10_000_000).optional(),
+  frequency: z.enum(['weekly', 'biweekly', 'monthly']).optional(),
+});
+
+// ── Expense schema ──────────────────────────────────────────
+
+const expenseCreateSchema = z.object({
+  amount:   z.number().positive('Amount must be positive').max(1_000_000),
+  category: z.enum(['food', 'transport', 'bills', 'entertainment', 'health', 'shopping', 'other']),
+  note:     z.string().max(200).optional(),
+});
+
 module.exports = {
   validate,
   schemas: {
-    register:     registerSchema,
-    login:        loginSchema,
-    refresh:      refreshSchema,
-    transfer:     transferSchema,
-    deposit:      depositSchema,
-    goalCreate:   goalCreateSchema,
-    goalUpdate:   goalUpdateSchema,
-    searchEmail:  searchEmailSchema,
+    register:      registerSchema,
+    login:         loginSchema,
+    refresh:       refreshSchema,
+    transfer:      transferSchema,
+    deposit:       depositSchema,
+    goalCreate:    goalCreateSchema,
+    goalUpdate:    goalUpdateSchema,
+    searchEmail:   searchEmailSchema,
+    bucketCreate:  bucketCreateSchema,
+    bucketUpdate:  bucketUpdateSchema,
+    bucketAmount:  bucketAmountSchema,
+    incomeCreate:  incomeCreateSchema,
+    incomeUpdate:  incomeUpdateSchema,
+    expenseCreate: expenseCreateSchema,
   },
 };

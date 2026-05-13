@@ -11,6 +11,10 @@ const userRoutes      = require('./routes/users');
 const transferRoutes  = require('./routes/transfers');
 const goalRoutes      = require('./routes/goals');
 const streakRoutes    = require('./routes/streaks');
+const bucketRoutes    = require('./routes/buckets');
+const incomeRoutes    = require('./routes/income');
+const expenseRoutes   = require('./routes/expenses');
+const gardenRoutes    = require('./routes/garden');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -54,6 +58,10 @@ app.use('/api/users',     userRoutes);
 app.use('/api/transfers', transferRoutes);
 app.use('/api/goals',     goalRoutes);
 app.use('/api/streaks',   streakRoutes);
+app.use('/api/buckets',   bucketRoutes);
+app.use('/api/income',    incomeRoutes);
+app.use('/api/expenses',  expenseRoutes);
+app.use('/api/garden',    gardenRoutes);
 
 // ── Health check ──────────────────────────────────────────────
 app.get('/health', (req, res) => {

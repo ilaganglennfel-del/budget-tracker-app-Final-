@@ -16,72 +16,82 @@ function getBadge(streak) {
 
 /**
  * Called on every authenticated "app open" ping.
- * Triggers streak logic only on the FIRST call of each UTC calendar day.
+ * Returns current streak state WITHOUT modifying it.
+ * Per spec: streak progression is ONLY triggered by Save It deposits.
  *
  * @param {string} userId
- * @returns {object} updated streak row
+ * @returns {object} current streak row
  */
 async function checkAndUpdateStreak(userId) {
+  const { rows } = await query(
+    `SELECT * FROM streaks WHERE user_id = $1`,
+    [userId]
+  );
+  return rows[0] || { current_streak: 0, badge_level: 'seedling' };
+}
+
+/**
+ * Called exclusively by bucketService on a Save It deposit.
+ * Advances the streak for the current UTC day.
+ * Awards a random shiny flower every 3rd consecutive day.
+ * Grays all existing flowers when a streak breaks.
+ *
+ * @param {string} userId
+ * @returns {object} { streak, flower | null }
+ */
+async function checkAndUpdateStreakOnDeposit(userId) {
+  const FLOWERS = ['rose', 'sunflower', 'tulip', 'sakura', 'hibiscus', 'daisy'];
+
   const client = await getClient();
   try {
     await client.query('BEGIN');
 
-    // Lock the streak row for this user
     const { rows } = await client.query(
       `SELECT * FROM streaks WHERE user_id = $1 FOR UPDATE`,
       [userId]
     );
 
     if (rows.length === 0) {
-      // Shouldn't happen (created on register), but handle gracefully
-      await client.query(
-        `INSERT INTO streaks (user_id) VALUES ($1)`,
-        [userId]
-      );
+      await client.query(`INSERT INTO streaks (user_id) VALUES ($1)`, [userId]);
       await client.query('COMMIT');
-      return { current_streak: 1, badge_level: 'seedling' };
+      return { streak: { current_streak: 1, badge_level: 'seedling' }, flower: null };
     }
 
-    const streak          = rows[0];
-    const todayUTC        = format(new Date(), 'yyyy-MM-dd');       // UTC date string
-    const lastActive      = streak.last_active_utc_date
+    const streak   = rows[0];
+    const todayUTC = format(new Date(), 'yyyy-MM-dd');
+    const lastActive = streak.last_active_utc_date
       ? format(new Date(streak.last_active_utc_date), 'yyyy-MM-dd')
       : null;
 
-    // Same UTC day → no-op, return current state
+    // Already deposited today — no-op, return current state
     if (lastActive === todayUTC) {
       await client.query('COMMIT');
-      return streak;
+      return { streak, flower: null };
     }
 
     let newStreak;
     let eventType;
 
     if (lastActive === null) {
-      // First ever app open
       newStreak = 1;
       eventType = 'streak_started';
     } else {
-      // Calculate difference using raw date strings
-      const last = new Date(lastActive + 'T00:00:00Z');
-      const now  = new Date(todayUTC   + 'T00:00:00Z');
+      const last     = new Date(lastActive + 'T00:00:00Z');
+      const now      = new Date(todayUTC   + 'T00:00:00Z');
       const diffDays = Math.round((now - last) / (1000 * 60 * 60 * 24));
 
       if (diffDays === 1) {
-        // Consecutive day
         newStreak = streak.current_streak + 1;
         eventType = 'streak_increment';
       } else {
-        // Streak broken
         newStreak = 1;
         eventType = 'streak_broken';
       }
     }
 
-    const newBadge       = getBadge(newStreak);
-    const newLongest     = Math.max(streak.longest_streak, newStreak);
+    const newBadge   = getBadge(newStreak);
+    const newLongest = Math.max(streak.longest_streak, newStreak);
 
-    // Update streak row
     const updated = await client.query(
       `UPDATE streaks
        SET current_streak       = $1,
@@ -94,15 +104,37 @@ async function checkAndUpdateStreak(userId) {
       [newStreak, newLongest, todayUTC, newBadge, userId]
     );
 
-    // Log the event
     await client.query(
       `INSERT INTO streak_metadata (user_id, event_type, streak_value, event_date)
        VALUES ($1, $2, $3, $4)`,
       [userId, eventType, newStreak, todayUTC]
     );
 
+    let awardedFlower = null;
+
+    // ── Gamification: Flower Award every 3rd day ──────────────
+    if (eventType === 'streak_increment' && newStreak % 3 === 0) {
+      const randomFlower = FLOWERS[Math.floor(Math.random() * FLOWERS.length)];
+      const flowerRes = await client.query(
+        `INSERT INTO garden_flowers (user_id, flower_type, is_shiny, streak_value)
+         VALUES ($1, $2, true, $3)
+         RETURNING *`,
+        [userId, randomFlower, newStreak]
+      );
+      awardedFlower = flowerRes.rows[0];
+    }
+
+    // ── Gamification: Gray all flowers on streak break ─────────
+    if (eventType === 'streak_broken') {
+      await client.query(
+        `UPDATE garden_flowers SET is_shiny = false
+         WHERE user_id = $1 AND is_shiny = true`,
+        [userId]
+      );
+    }
+
     await client.query('COMMIT');
-    return updated.rows[0];
+    return { streak: updated.rows[0], flower: awardedFlower };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -183,4 +215,4 @@ async function restoreStreak(userId) {
   }
 }
 
-module.exports = { checkAndUpdateStreak, restoreStreak, getBadge };
+module.exports = { checkAndUpdateStreak, checkAndUpdateStreakOnDeposit, restoreStreak, getBadge };

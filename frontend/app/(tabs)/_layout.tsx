@@ -36,18 +36,18 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="transfers"
+        name="saveit"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="💸" label="Transfers" focused={focused} />
+            <TabIcon emoji="🪣" label="Save It" focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
-        name="goals"
+        name="income"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🎯" label="Goals" focused={focused} />
+            <TabIcon emoji="💰" label="Income" focused={focused} />
           ),
         }}
       />
@@ -59,6 +59,9 @@ export default function TabLayout() {
           ),
         }}
       />
+      {/* Legacy screens — redirected, hidden from tab bar */}
+      <Tabs.Screen name="transfers" options={{ href: null }} />
+      <Tabs.Screen name="goals"     options={{ href: null }} />
     </Tabs>
   );
 }
